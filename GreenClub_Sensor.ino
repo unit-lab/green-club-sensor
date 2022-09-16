@@ -3,7 +3,6 @@
 #include <SPI.h>
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BME280.h>
-#include <ESP32Servo.h>
 #include <WiFiManager.h>
 #include <HTTPClient.h>
 #include <WiFiClientSecure.h>
@@ -27,10 +26,6 @@ unsigned int lastPost;
 #define SEALEVELPRESSURE_HPA (1013.25)
 Adafruit_BME280 bme; // I2C
 
-// Servo
-Servo myservo;
-int servoPin = 18;
-
 // Sensor data
 byte packet[10];
 int packetIndex = 0;
@@ -38,11 +33,6 @@ float temperature;
 float pressure;
 float humidity;
 uint16_t pm25, pm10;
-
-// Servo settings
-#define SERVO_MIN 0
-#define SERVO_MAX 50
-#define SERVO_SENSOR temperature
 
 // HTTPS Client
 const String idRequest = "https://greenclub.world:1337/api/sensors?filters[chipId][$eq]=";
@@ -118,14 +108,6 @@ void setup() {
       delay(100);
     }
   }
-
-  // Setup servo
-  ESP32PWM::allocateTimer(0);
-  ESP32PWM::allocateTimer(1);
-  ESP32PWM::allocateTimer(2);
-  ESP32PWM::allocateTimer(3);
-  myservo.setPeriodHertz(50);    // standard 50 hz servo
-  myservo.attach(servoPin, 1000, 2000);
 }
 
 void loop() {
@@ -256,7 +238,6 @@ void sensorHandler() {
       processPmData(packet, packetIndex);
       fetchBmeValues();
       printValues();
-      myservo.write(map(SERVO_SENSOR, SERVO_MIN, SERVO_MAX, 0, 180));
       packetIndex = 0;
       memset(packet, 0x00, sizeof(packet));
     }

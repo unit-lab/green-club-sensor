@@ -1,0 +1,96 @@
+name: build
+
+on: [push, pull_request]
+
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          path: GreenClub_Sensor
+
+      - name: Setup Arduino CLI
+        uses: arduino/setup-arduino-cli@v1.1.1
+
+      - name: Install Python
+        uses: actions/setup-python@v1
+        with:
+          python-version: '2.7'
+
+      - name: Install requirements
+        run: |
+          pip install pyserial
+          echo ${{github.ref}}
+      - name: Install platform
+        run: |
+          arduino-cli core update-index --additional-urls https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
+          arduino-cli core install esp32:esp32@2.0.4 --additional-urls https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
+      - name: Install libraries
+        run: |
+          arduino-cli lib install "WiFiManager"
+          arduino-cli lib install "ArduinoJson"
+          arduino-cli lib install "Adafruit_BME280"
+   
+      - name: Compile
+        run: |
+          mkdir build
+          echo "Compiling ${{github.repository}}..."
+          arduino-cli compile -v -b esp32:esp32:esp32 --build-properties build.partitions=minimal,upload.maximum_size=1966080 --output-dir build GreenClub_Sensor
+      - name: Checkout esp_binary_merger
+        uses: actions/checkout@v2
+        with:
+          repository: vtunr/esp32_binary_merger
+          path: esp32_binary_merger
+
+      - name: Merge binaries
+        run: |
+          python esp32_binary_merger/merge_bin_esp.py \
+            --output_name app-combined.bin \
+            --bin_path /home/runner/.arduino15/packages/esp32/hardware/esp32/2.0.4/tools/sdk/esp32/bin/bootloader_dio_80m.bin build/GreenClub_Sensor.ino.partitions.bin build/GreenClub_Sensor.ino.bin \
+            --bin_address 0x1000 0x8000 0x10000
+          mv output/app-combined.bin build/app-combined.bin
+          mv build/GreenClub_Sensor.ino.bin build/app.bin
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: build
+          path: build/
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Green Club Sensor ${{ github.ref }}
+          draft: true
+          prerelease: false
+
+      - name: Upload app-combined.bin to Release
+        id: upload-release-asset-1
+        uses: actions/upload-release-asset@v1
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: build/app-combined.bin
+          asset_name: app-combined.bin
+          asset_content_type: application/octet-stream
+
+      - name: Upload app.bin to Release
+        id: upload-release-asset-2
+        uses: actions/upload-release-asset@v1
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: build/app.bin
+          asset_name: app.bin
+          asset_content_type: application/octet-stream
