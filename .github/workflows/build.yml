@@ -32,7 +32,7 @@ jobs:
         run: |
           arduino-cli lib install "WiFiManager"
           arduino-cli lib install "ArduinoJson"
-          arduino-cli lib install "Adafruit_BME280_Library"
+          arduino-cli lib install "Adafruit BME280 Library"
    
       - name: Compile
         run: |
