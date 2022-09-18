@@ -62,8 +62,8 @@ jobs:
         run: |
           python esp32_binary_merger/merge_bin_esp.py \
             --output_name app-combined.bin \
-            --bin_path /home/runner/.arduino15/packages/esp32/hardware/esp32/2.0.4/tools/sdk/esp32/bin/bootloader_dio_80m.bin build/GreenClub_Sensor.ino.partitions.bin build/GreenClub_Sensor.ino.bin \
-            --bin_address 0x1000 0x8000 0x10000
+            --bin_path build/GreenClub_Sensor.ino.bootloader.bin build/GreenClub_Sensor.ino.partitions.bin build/boot_app0.bin build/GreenClub_Sensor.ino.bin \
+            --bin_address 0x1000 0x8000 0xe000 0x10000
           mv output/app-combined.bin build/app-combined.bin
           mv build/GreenClub_Sensor.ino.bin build/app.bin
           mv build/GreenClub_Sensor.ino.partitions.bin build/partitions.bin
