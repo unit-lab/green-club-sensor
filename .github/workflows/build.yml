@@ -49,6 +49,9 @@ jobs:
           mkdir build
           echo "Compiling ${{github.repository}}..."
           arduino-cli compile -v -b esp32:esp32:esp32 --build-properties build.partitions=minimal,upload.maximum_size=1966080 --output-dir build GreenClub_Sensor
+          cp /home/runner/.arduino15/packages/esp32/hardware/esp32/2.0.4/tools/partitions/boot_app0.bin build/boot_app0.bin
+          ls build
+
       - name: Checkout esp_binary_merger
         uses: actions/checkout@v2
         with:
@@ -63,6 +66,9 @@ jobs:
             --bin_address 0x1000 0x8000 0x10000
           mv output/app-combined.bin build/app-combined.bin
           mv build/GreenClub_Sensor.ino.bin build/app.bin
+          mv build/GreenClub_Sensor.ino.partitions.bin build/partitions.bin
+          mv build/GreenClub_Sensor.ino.bootloader.bin build/bootloader.bin
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v2
         with:
@@ -103,4 +109,40 @@ jobs:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: build/app.bin
           asset_name: app.bin
+          asset_content_type: application/octet-stream
+      
+      - name: Upload bootloader to Release
+        id: upload-release-asset-2
+        uses: actions/upload-release-asset@v1
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: build/bootloader.bin
+          asset_name: bootloader.bin
+          asset_content_type: application/octet-stream
+
+      - name: Upload partitions to Release
+        id: upload-release-asset-2
+        uses: actions/upload-release-asset@v1
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: build/partitions.bin
+          asset_name: partitions.bin
+          asset_content_type: application/octet-stream
+
+      - name: Upload boot_app0 to Release
+        id: upload-release-asset-2
+        uses: actions/upload-release-asset@v1
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: build/boot_app0.bin
+          asset_name: boot_app0.bin
           asset_content_type: application/octet-stream
