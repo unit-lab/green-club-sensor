@@ -16,6 +16,7 @@ WiFiManager wm;
 String id;
 int idOnServer = 0;
 #define POST_FREQUENCY 3600000
+#define RESET_AFTER_H 4
 unsigned int lastPost;
 
 // BME280
@@ -118,6 +119,12 @@ void loop() {
     if (lastPost == 0 || millis() - lastPost >= POST_FREQUENCY) {
       // Send results
       postSensorData();
+    }
+    if (lastPost >= POST_FREQUENCY * RESET_AFTER_H) {
+      Serial.print("Warning: restarting, after ");
+      Serial.print(RESET_AFTER_H);
+      Serial.println(" unsuccessful attempts.");
+      ESP.restart();
     }
   }
 }
