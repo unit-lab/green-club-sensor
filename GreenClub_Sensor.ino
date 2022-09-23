@@ -128,50 +128,55 @@ void postSensorData() {
     getSensorId();
   }
 
-  WiFiClientSecure *client = new WiFiClientSecure;
-  if (client) {
-    client -> setCACert(rootCACertificate);
-    {
-      // Add a scoping block for HTTPClient https to make sure it is destroyed before WiFiClientSecure *client is
-      HTTPClient https;
+  if (idOnServer == 0) {
+    lastPost = millis();
+    Serial.println("Warning: Sensor not registered / not approved on greenclub.world yet. Will not post data to server, but will check again in an hour.");
+  } else {
+    WiFiClientSecure *client = new WiFiClientSecure;
+    if (client) {
+      client -> setCACert(rootCACertificate);
+      {
+        // Add a scoping block for HTTPClient https to make sure it is destroyed before WiFiClientSecure *client is
+        HTTPClient https;
 
-      Serial.print("[HTTPS] begin...\n");
-      if (https.begin(*client, postRequest)) {  // HTTPS
-        https.addHeader("Content-Type", "application/json");
-        Serial.print("[HTTPS] POST...\n");
-        // start connection and send HTTP header
-        String output;
-        StaticJsonDocument<128> doc;
-        JsonObject data = doc.createNestedObject("data");
-        data["sensor"] = idOnServer;
-        data["pm25"] = pm25;
-        data["pm10"] = pm10;
-        data["temperature"] = temperature;
-        data["humidity"] = humidity;
-        data["pressure"] = int(pressure);
-        serializeJson(doc, output);
-        Serial.println(output);
-        int httpCode = https.POST(output);
+        Serial.print("[HTTPS] begin...\n");
+        if (https.begin(*client, postRequest)) {  // HTTPS
+          https.addHeader("Content-Type", "application/json");
+          Serial.print("[HTTPS] POST...\n");
+          // start connection and send HTTP header
+          String output;
+          StaticJsonDocument<128> doc;
+          JsonObject data = doc.createNestedObject("data");
+          data["sensor"] = idOnServer;
+          data["pm25"] = pm25;
+          data["pm10"] = pm10;
+          data["temperature"] = temperature;
+          data["humidity"] = humidity;
+          data["pressure"] = int(pressure);
+          serializeJson(doc, output);
+          Serial.println(output);
+          int httpCode = https.POST(output);
 
-        if (httpCode > 0) {
-          Serial.printf("[HTTPS] POST... code: %d\n", httpCode);
-          if (httpCode == HTTP_CODE_OK || httpCode == HTTP_CODE_MOVED_PERMANENTLY) {
-            Serial.println("Success");
-            lastPost = millis();
+          if (httpCode > 0) {
+            Serial.printf("[HTTPS] POST... code: %d\n", httpCode);
+            if (httpCode == HTTP_CODE_OK || httpCode == HTTP_CODE_MOVED_PERMANENTLY) {
+              Serial.println("Success");
+              lastPost = millis();
+            }
+          } else {
+            Serial.printf("[HTTPS] GET... failed, error: %s\n", https.errorToString(httpCode).c_str());
           }
+          https.end();
         } else {
-          Serial.printf("[HTTPS] GET... failed, error: %s\n", https.errorToString(httpCode).c_str());
+          Serial.printf("[HTTPS] Unable to connect\n");
         }
-        https.end();
-      } else {
-        Serial.printf("[HTTPS] Unable to connect\n");
+
       }
 
+      delete client;
+    } else {
+      Serial.println("Unable to create client");
     }
-
-    delete client;
-  } else {
-    Serial.println("Unable to create client");
   }
 }
 
