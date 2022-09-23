@@ -211,7 +211,7 @@ void getSensorId() {
           if (httpCode == HTTP_CODE_OK || httpCode == HTTP_CODE_MOVED_PERMANENTLY) {
             String payload = https.getString();
             Serial.println(payload);
-            StaticJsonDocument<1024> doc;
+            StaticJsonDocument<2048> doc;
             DeserializationError error = deserializeJson(doc, payload);
             if (error) {
               Serial.print("deserializeJson() failed: ");
