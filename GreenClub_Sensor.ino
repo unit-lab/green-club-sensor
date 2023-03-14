@@ -1,4 +1,5 @@
 #define VERSION "v0.1"
+#include <esp_now.h>
 #include <Wire.h>
 #include <SPI.h>
 #include <Adafruit_Sensor.h>
@@ -8,6 +9,33 @@
 #include <WiFiClientSecure.h>
 #define ARDUINOJSON_ENABLE_ARDUINO_STRING 1
 #include <ArduinoJson.h>
+
+// ESPNow local network for visualisers :)
+esp_now_peer_info_t _peer;
+uint8_t broadcastAddress[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+int currentChannel;
+
+// Structure example to send data to visualisers
+typedef struct struct_message {
+  float temp;
+  float pressure;
+  float humidity;
+  uint16_t pm25;
+  uint16_t pm10;
+} struct_message;
+
+// Structure for pairing visualisers
+typedef struct struct_pairing {
+  uint8_t macAddr[6];
+  uint8_t channel;
+} struct_pairing;
+
+struct_message outgoingReadings;
+struct_pairing pairingData;
+esp_now_peer_info_t peerInfo;
+
+#define ESPNOW_SEND_FREQUENCY 5000
+unsigned long lastEspNowSend;
 
 WiFiManager wm;
 
@@ -87,7 +115,8 @@ void setup() {
   pinMode(LED_BUILTIN, OUTPUT);
 
   // Connect to Wi-Fi
-  WiFi.mode(WIFI_STA);
+  //WiFi.mode(WIFI_STA);
+  //initESPNow();
   wm.setConfigPortalBlocking(false);
   wm.setConfigPortalTimeout(240);
   if (wm.autoConnect(String(String("GreenClub-") + id).c_str())) {
@@ -96,6 +125,8 @@ void setup() {
   else {
     Serial.println("Configuration portal running...");
   }
+
+  initESPNow();
 
   // Initialise BME280
   unsigned status;
@@ -112,6 +143,7 @@ void setup() {
 }
 
 void loop() {
+  unsigned long currentTime = millis();
   wm.process();
   sensorHandler();
 
@@ -126,6 +158,16 @@ void loop() {
       Serial.println(" unsuccessful attempts.");
       ESP.restart();
     }
+  }
+
+  if (currentTime - lastEspNowSend >= ESPNOW_SEND_FREQUENCY) {
+    lastEspNowSend = currentTime;
+    sendValuesEspNow();
+  }
+
+  if (currentChannel != WiFi.channel()) {
+    Serial.println("WiFi channel changed! Reinitialising ESPNow...");
+    initESPNow();
   }
 }
 
@@ -300,4 +342,13 @@ void printValues() {
   Serial.println();
 
   Serial.println();
+}
+
+void sendValuesEspNow() {
+  outgoingReadings.temp = temperature;
+  outgoingReadings.humidity = humidity;
+  outgoingReadings.pressure = pressure;
+  outgoingReadings.pm25 = pm25;
+  outgoingReadings.pm10 = pm10;
+  esp_err_t result = esp_now_send(broadcastAddress, (uint8_t *) &outgoingReadings, sizeof(outgoingReadings));
 }
